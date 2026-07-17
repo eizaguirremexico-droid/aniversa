@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>4 años con Aleli</title>
+<meta name="description" content="Feliz aniversario, Aleli. 4 años juntos." />
+<meta name="theme-color" content="#241019" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,600&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#241019;
+    --bg-1:#331523;
+    --bg-2:#42192d;
+    --gold:#e8c07a;
+    --gold-soft:#f3d9a4;
+    --rose:#f2a1b8;
+    --rose-deep:#e56b8c;
+    --ink:#fdf1f0;
+    --ink-dim:#e3c4cd;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    background: var(--bg-0);
+    overflow:hidden;
+    font-family:'Poppins', sans-serif;
+    color:var(--ink);
+  }
+  #bg{
+    position:fixed; inset:0;
+    background:
+      radial-gradient(ellipse at 50% 15%, rgba(242,161,184,0.12), transparent 45%),
+      radial-gradient(ellipse at 15% 88%, rgba(229,107,140,0.14), transparent 50%),
+      radial-gradient(ellipse at 85% 80%, rgba(232,192,122,0.08), transparent 55%),
+      linear-gradient(160deg, var(--bg-0) 0%, var(--bg-1) 55%, var(--bg-2) 100%);
+    z-index:0;
+  }
+  #stars{ position:fixed; inset:0; z-index:1; pointer-events:none; }
+  .star{
+    position:absolute; width:2px; height:2px; border-radius:50%;
+    background:var(--rose); opacity:0.5;
+    animation: twinkle 3.5s ease-in-out infinite;
+  }
+  .star.gold{ background:var(--gold-soft); }
+  @keyframes twinkle{ 0%,100%{opacity:.15; transform:scale(1);} 50%{opacity:.9; transform:scale(1.6);} }
+
+  #canvas-holder{ position:fixed; inset:0; z-index:2; }
+  canvas#scene{ display:block; width:100%; height:100%; touch-action:none; }
+
+  /* ---------- Mobile-first HUD ---------- */
+  .hud{
+    position:fixed; z-index:4; left:0; right:0;
+    display:flex; flex-direction:column; align-items:center;
+    text-align:center; pointer-events:none;
+    padding: 0 1.1rem;
+  }
+  .hud-top{ top: calc(env(safe-area-inset-top, 0px) + 0.9rem); }
+  .hud-eyebrow{
+    letter-spacing:.28em; text-transform:uppercase; font-size:.6rem;
+    color: var(--rose); opacity:.85; font-weight:500; margin-bottom:.35rem;
+  }
+  .hud-title{
+    font-family:'Playfair Display', serif; font-style:italic; font-weight:700;
+    font-size: 1.65rem;
+    color: var(--ink);
+    text-shadow: 0 0 30px rgba(242,161,184,0.3);
+  }
+  .hud-names{
+    margin-top:.25rem;
+    font-family:'Playfair Display', serif; font-style:italic; font-weight:500;
+    font-size: 1rem;
+    color: var(--rose);
+    letter-spacing:.06em;
+  }
+  .hud-bottom{
+    bottom: 0;
+    padding-top: 3.2rem;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 2rem);
+    gap:.85rem;
+    background: linear-gradient(to top, rgba(36,16,25,0.92) 45%, rgba(36,16,25,0.55) 75%, transparent);
+  }
+  .hud-msg{
+    max-width: 540px; margin: 0 auto;
+    font-size: .82rem;
+    color: var(--ink-dim); font-weight:300; line-height:1.6;
+  }
+  .hud-bottom .btn{ pointer-events:auto; }
+
+  .btn{
+    appearance:none; border:1px solid rgba(242,161,184,0.55);
+    background: linear-gradient(180deg, rgba(242,161,184,0.2), rgba(242,161,184,0.06));
+    color: var(--ink);
+    font-family:'Poppins', sans-serif; font-weight:500; font-size:1rem;
+    letter-spacing:.03em;
+    padding: 1rem 2.1rem; border-radius: 999px;
+    min-height: 52px; /* touch target */
+    cursor:pointer;
+    transition: transform .25s ease, box-shadow .25s ease, background .25s ease;
+  }
+  .btn:active{ transform: scale(.97); background: linear-gradient(180deg, rgba(242,161,184,0.32), rgba(242,161,184,0.1)); }
+
+  .hint{
+    position:fixed; z-index:4; left:0; right:0;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 0.35rem);
+    text-align:center; font-size:.62rem; letter-spacing:.08em;
+    color: rgba(227,196,205,0.45); pointer-events:none;
+    transition: opacity .6s ease;
+  }
+
+  /* ---------- Intro veil ---------- */
+  .veil{
+    position:fixed; inset:0; z-index:5;
+    display:flex; align-items:center; justify-content:center;
+    background: linear-gradient(160deg, var(--bg-0) 0%, var(--bg-1) 55%, var(--bg-2) 100%);
+    transition: opacity 1.1s ease, visibility 1.1s ease;
+  }
+  .veil.hidden{ opacity:0; visibility:hidden; pointer-events:none; }
+  .intro{ text-align:center; padding: 2rem 1.4rem; max-width: 620px; }
+  .eyebrow{
+    letter-spacing:.32em; text-transform:uppercase;
+    font-size:.66rem; color:var(--rose); opacity:.9;
+    margin-bottom: 1rem; font-weight:500;
+  }
+  .title{
+    font-family:'Playfair Display', serif;
+    font-weight:700; font-style:italic;
+    font-size: clamp(2rem, 9vw, 3.4rem);
+    line-height:1.15;
+    color: var(--ink);
+    text-shadow: 0 0 40px rgba(242,161,184,0.3);
+    margin: 0 0 .6rem 0;
+  }
+  .title em{ color: var(--rose); font-style:italic; }
+  .sub{
+    font-size: clamp(.88rem, 3.4vw, 1.05rem);
+    color: var(--ink-dim); font-weight:300;
+    margin-bottom: 2rem; line-height:1.6;
+  }
+  .hearts{ font-size:1.1rem; margin-top:1.6rem; opacity:.7; letter-spacing:.5em; }
+
+  /* ---------- Larger screens ---------- */
+  @media (min-width: 700px){
+    .hud-top{ top: 2.4rem; }
+    .hud-eyebrow{ font-size:.64rem; }
+    .hud-title{ font-size: 2.4rem; }
+    .hud-names{ font-size: 1.25rem; }
+    .hud-bottom{ bottom: 2.4rem; gap:1rem; }
+    .hud-msg{ font-size:.95rem; }
+    .hint{ bottom: .9rem; font-size:.68rem; }
+    .btn:hover{
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(242,161,184,0.2);
+    }
+  }
+</style>
+</head>
+<body>
+
+<div id="bg"></div>
+<div id="stars"></div>
+<div id="canvas-holder"><canvas id="scene"></canvas></div>
+
+<div class="hud hud-top">
+  <div class="hud-eyebrow">17 · Julio · Aniversario</div>
+  <div class="hud-title">4 años contigo</div>
+  <div class="hud-names">Jose y Meli</div>
+</div>
+
+<div class="hud hud-bottom">
+  <div class="hud-msg" id="hudMsg">
+    Aleli, cuatro años y todavía se siente como el primer día. Gracias por elegirme, por reírte de mis chistes malos y por ser mi lugar favorito. Pide un deseo, mi amor.
+  </div>
+  <button class="btn" id="blowBtn">🕯️ Soplar la vela</button>
+</div>
+
+<p class="hint" id="hint">desliza para girar el pastel</p>
+
+<div class="veil" id="veil">
+  <div class="intro">
+    <div class="eyebrow">Feliz aniversario</div>
+    <h1 class="title">Para <em>Aleli</em>,<br/>mi persona favorita</h1>
+    <p class="sub">Hoy celebramos 4 años juntos. Preparé algo pequeño para ti.</p>
+    <button class="btn" id="startBtn">Abrir mi regalo 🎁</button>
+    <div class="hearts">🤍 🌸 🤍</div>
+  </div>
+</div>
+
+<script>
+  const starsWrap = document.getElementById('stars');
+  const N = 55;
+  for(let i=0;i<N;i++){
+    const s = document.createElement('div');
+    s.className = 'star' + (i % 3 === 0 ? ' gold' : '');
+    s.style.left = Math.random()*100+'%';
+    s.style.top = Math.random()*100+'%';
+    s.style.animationDelay = (Math.random()*3.5)+'s';
+    s.style.animationDuration = (2.5+Math.random()*3)+'s';
+    starsWrap.appendChild(s);
+  }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module" src="./cake.js"></script>
+</body>
+</html>
