@@ -354,7 +354,7 @@ async function pedir(paquete) {
 function pintarLog(lineas) {
   if (!lineas || !lineas.length) return;
   const abajo = detalle.scrollTop + detalle.clientHeight >= detalle.scrollHeight - 30;
-  detalle.textContent = lineas.join('\n');
+  detalle.textContent = lineas.join('\\n');
   // Seguir el final solo si el usuario no subio a leer algo.
   if (abajo) detalle.scrollTop = detalle.scrollHeight;
 }
@@ -374,7 +374,7 @@ async function mirar() {
       titulo.textContent = e.resultado;
       paso.textContent = '';
       pintarLog(e.lineas && e.lineas.length ? e.lineas
-                                           : (e.salida || '').split('\n'));
+                                           : (e.salida || '').split('\\n'));
       verCaptura.classList.add('visible');
       bloquear(false);
       clearInterval(vigilando); vigilando = null;
