@@ -19,7 +19,7 @@ import threading
 import time
 from functools import wraps
 
-from flask import Flask, Response, jsonify, request
+from flask import Flask, Response, jsonify, request, send_file
 
 CARPETA = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(CARPETA, "recarga.py")
@@ -168,6 +168,26 @@ def api_estado():
     return jsonify(e)
 
 
+@app.route("/api/captura")
+@protegido
+def api_captura():
+    """
+    Devuelve la captura de pantalla mas reciente que dejo el script.
+
+    Sin esto el navegador corre a ciegas dentro del contenedor: si la
+    pagina de Telcel devuelve algo inesperado, no habria forma de verlo.
+    """
+    try:
+        pngs = [os.path.join(CARPETA, f) for f in os.listdir(CARPETA)
+                if f.lower().endswith(".png")]
+        if not pngs:
+            return jsonify({"error": "Todavia no hay capturas"}), 404
+        recientes = max(pngs, key=os.path.getmtime)
+        return send_file(recientes, mimetype="image/png")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/salud")
 def salud():
     return "ok", 200
@@ -232,6 +252,16 @@ PAGINA = """<!doctype html>
     border-top: 1px solid #2a303c; padding-top: 10px;
   }
   #detalle:empty { display: none; border: 0; padding: 0; }
+  #verCaptura {
+    display: none; margin-top: 14px; font-size: 14px;
+    color: #7aa7f0; text-decoration: underline;
+  }
+  #verCaptura.visible { display: inline-block; }
+  #captura {
+    display: none; width: 100%; margin-top: 12px;
+    border-radius: 8px; border: 1px solid #2a303c;
+  }
+  #captura.visible { display: block; }
   .punto {
     display: inline-block; width: 9px; height: 9px; border-radius: 50%;
     margin-right: 8px; background: #9aa1ad;
@@ -258,6 +288,8 @@ PAGINA = """<!doctype html>
     <div><span class="punto" id="punto"></span><span id="titulo"></span></div>
     <div id="paso"></div>
     <div id="detalle"></div>
+    <a id="verCaptura" href="#">Ver lo que vio el navegador</a>
+    <img id="captura" alt="Captura de la pagina">
   </div>
 
 <script>
@@ -268,6 +300,16 @@ const punto = document.getElementById('punto');
 const titulo = document.getElementById('titulo');
 const detalle = document.getElementById('detalle');
 const paso = document.getElementById('paso');
+const verCaptura = document.getElementById('verCaptura');
+const captura = document.getElementById('captura');
+
+verCaptura.onclick = (ev) => {
+  ev.preventDefault();
+  // El parametro de tiempo evita que el navegador reuse la captura anterior.
+  captura.src = '/api/captura?t=' + Date.now();
+  captura.classList.add('visible');
+  verCaptura.style.display = 'none';
+};
 let vigilando = null;
 
 PAQUETES.forEach(p => {
@@ -333,6 +375,7 @@ async function mirar() {
       paso.textContent = '';
       pintarLog(e.lineas && e.lineas.length ? e.lineas
                                            : (e.salida || '').split('\n'));
+      verCaptura.classList.add('visible');
       bloquear(false);
       clearInterval(vigilando); vigilando = null;
     }

@@ -324,6 +324,10 @@ JS_DIAGNOSTICO = """() => {
         .slice(0, 25);
     return {
         largo: txt.length,
+        // El texto mismo, no solo su tamaño: si el sitio devuelve un
+        // bloqueo o una verificacion, la respuesta esta escrita ahi.
+        texto: txt.replace(/\s+/g, ' ').trim().slice(0, 400),
+        titulo: document.title || '',
         tieneQuiero: txt.toLowerCase().includes('quiero'),
         tienePaquete: txt.toLowerCase().includes('internet por tiempo'),
         clicables: clicables
@@ -377,9 +381,14 @@ def diagnosticar_marcos(page):
         if not d["largo"]:
             continue
         print(f"      [{i}] {url}")
+        print(f"          titulo: {d.get('titulo', '')!r}")
         print(f"          texto={d['largo']} chars, "
               f"dice 'quiero'={d['tieneQuiero']}, "
               f"dice 'internet por tiempo'={d['tienePaquete']}")
+        # El contenido literal: si el sitio devolvio un bloqueo o una
+        # verificacion, la explicacion esta escrita en este texto.
+        if d.get("texto"):
+            print(f"          CONTENIDO: {d['texto']}")
         if d["clicables"]:
             print(f"          clicables: {d['clicables'][:12]}")
 
