@@ -1,27 +1,25 @@
 """
 Bot de Telegram para disparar la recarga desde el telefono.
 
-Corre en TU PC, no en un servidor: Telcel bloquea con 403 las
-peticiones que vienen de un centro de datos, pero acepta las de tu
-conexion normal. El telefono manda la orden desde donde sea, con
-datos moviles, y la compra sale por tu internet de casa.
+Corre en TU PC, no en un servidor: Telcel responde 403 al servicio del
+catalogo cuando la peticion sale de un centro de datos, pero acepta la
+misma peticion desde una conexion domestica. El telefono manda la
+orden desde donde sea, y la compra sale por tu internet de casa.
 
-CONFIGURACION (una sola vez):
+COMO USARLO:
 
- 1. En Telegram, busca:  @BotFather
- 2. Mandale:  /newbot
-    Te pide un nombre y un usuario (debe terminar en 'bot').
- 3. Te devuelve un TOKEN largo. Pegalo en datos.txt:
+ 1. Pon este archivo junto a datos.txt (si no, lo busca en Descargas,
+    Escritorio y tu carpeta de usuario).
+ 2. Consigue un token con @BotFather en Telegram: mandale /newbot,
+    elige un nombre y un usuario que termine en 'bot'.
+ 3. Agrega el token a datos.txt:
        TELEGRAM_TOKEN=8123456789:AAF-loquetehayadado
- 4. Corre:  python bot_telegram.py
- 5. Busca TU bot en Telegram y mandale cualquier mensaje.
-    La ventana negra te va a decir tu CHAT_ID.
- 6. Pegalo en datos.txt:
-       TELEGRAM_CHAT_ID=123456789
- 7. Reinicia el bot. Listo.
+ 4. Corre este archivo y deja la ventana abierta.
+ 5. Buscate tu bot en Telegram y mandale cualquier mensaje.
 
-El CHAT_ID no es un tramite: sin el, cualquiera que encuentre tu bot
-podria gastar tu dinero. Con el, el bot ignora a todos menos a ti.
+El primero que le escriba queda registrado como dueño: el bot guarda
+ese chat en datos.txt y a partir de ahi ignora a todos los demas. Por
+eso conviene escribirle tu, en cuanto lo prendas.
 
 Requiere:  pip install requests
 """
@@ -42,10 +40,36 @@ except ImportError:
     sys.exit(1)
 
 CARPETA = os.path.dirname(os.path.abspath(__file__))
-ARCHIVO = os.path.join(CARPETA, "datos.txt")
 
-# El script de compra, con el nombre que tenga en esta carpeta.
+# El script de compra, con cualquiera de los nombres que ha tenido.
 CANDIDATOS = ("recarga.py", "PASO2_recarga.py")
+
+
+def lugares_probables():
+    """Carpetas donde puede estar datos.txt, en orden de preferencia."""
+    casa = os.path.expanduser("~")
+    return [
+        CARPETA,
+        os.getcwd(),
+        os.path.join(casa, "Downloads"),
+        os.path.join(casa, "Descargas"),
+        os.path.join(casa, "Desktop"),
+        os.path.join(casa, "Escritorio"),
+        casa,
+    ]
+
+
+def buscar(nombres):
+    """Devuelve la primera ruta existente entre los lugares probables."""
+    for carpeta in lugares_probables():
+        for nombre in nombres:
+            ruta = os.path.join(carpeta, nombre)
+            if os.path.exists(ruta):
+                return ruta
+    return None
+
+
+ARCHIVO = buscar(["datos.txt"])
 
 PAQUETES = {
     "1 hora - $10": "1 Hora",
@@ -62,19 +86,27 @@ _ocupado = threading.Lock()
 
 
 def encontrar_script():
-    for nombre in CANDIDATOS:
-        ruta = os.path.join(CARPETA, nombre)
-        if os.path.exists(ruta):
-            return ruta
-    print("ERROR: no encuentro el script de compra en", CARPETA)
+    ruta = buscar(CANDIDATOS)
+    if ruta:
+        return ruta
+    print("ERROR: no encuentro el script de compra.")
     print("Debe llamarse recarga.py o PASO2_recarga.py")
+    print("\nBusque en estas carpetas:")
+    for c in lugares_probables():
+        print("   ", c)
+    print("\nPon el script en la misma carpeta que este archivo.")
     input("\nENTER para salir...")
     sys.exit(1)
 
 
 def leer_datos():
-    if not os.path.exists(ARCHIVO):
-        print("ERROR: no encuentro datos.txt en", CARPETA)
+    if not ARCHIVO or not os.path.exists(ARCHIVO):
+        print("ERROR: no encuentro datos.txt.")
+        print("\nBusque en estas carpetas:")
+        for c in lugares_probables():
+            print("   ", c)
+        print("\nPonlo en la misma carpeta que este archivo,")
+        print("o arrastra este archivo a donde este datos.txt")
         input("\nENTER para salir...")
         sys.exit(1)
     cfg = {}
@@ -179,10 +211,24 @@ def main():
             hora = time.strftime("%H:%M:%S")
 
             if not permitido:
-                print(f"[{hora}] Tu CHAT_ID es: {chat}")
-                print(f"         Agrega a datos.txt:  TELEGRAM_CHAT_ID={chat}")
-                enviar(chat, f"Tu CHAT_ID es {chat}\n"
-                             "Agregalo a datos.txt y reinicia el bot.")
+                # El primero que escribe queda registrado como dueño y
+                # se guarda en datos.txt, para no obligar a editar el
+                # archivo a mano ni a reiniciar el bot.
+                permitido = chat
+                try:
+                    with open(ARCHIVO, "a", encoding="utf-8") as f:
+                        f.write(f"\nTELEGRAM_CHAT_ID={chat}\n")
+                    print(f"[{hora}] Registrado tu chat: {chat}")
+                    print(f"         Guardado en {ARCHIVO}")
+                    enviar(chat, "Listo, quedaste registrado. "
+                                 "Desde ahora solo yo te respondo a ti.\n\n"
+                                 "Elige un paquete:", teclado=True)
+                except Exception as e:
+                    print(f"[{hora}] Tu CHAT_ID es {chat}, pero no pude "
+                          f"guardarlo: {e}")
+                    print(f"         Agregalo a mano:  TELEGRAM_CHAT_ID={chat}")
+                    enviar(chat, f"Tu CHAT_ID es {chat}. No pude guardarlo "
+                                 "solo; agregalo a datos.txt.")
                 continue
 
             if chat != permitido:
