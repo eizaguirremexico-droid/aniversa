@@ -3,28 +3,35 @@ title Bot de recarga Telcel
 cd /d "%~dp0"
 
 echo ============================================================
-echo   Iniciando el bot de recarga
+echo   Bot de recarga Telcel
 echo ============================================================
 echo.
 
-echo Revisando la libreria requests...
-python -m pip install --quiet requests 2>nul
+REM Elegir el comando de Python que exista en esta maquina.
+set PY=python
+%PY% --version >nul 2>&1
+if errorlevel 1 set PY=py
+%PY% --version >nul 2>&1
 if errorlevel 1 (
-    echo.
-    echo No se pudo usar 'python'. Probando con 'py'...
-    py -m pip install --quiet requests
-    echo.
-    py bot_telegram.py
-    goto fin
+    echo No encuentro Python. Instalalo desde python.org
+    echo y marca "Add Python to PATH" durante la instalacion.
+    pause
+    exit /b 1
 )
 
-echo Listo.
+echo Usando: %PY%
+echo Revisando la libreria requests...
+%PY% -m pip install --quiet requests
 echo.
-python bot_telegram.py
 
-:fin
+REM Si el bot se cae (internet caido, error suelto), volver a
+REM levantarlo. Sin esto habria que estar pendiente de la ventana.
+:reiniciar
+echo [%date% %time%] Arrancando el bot...
+%PY% bot_telegram.py
+
 echo.
-echo ============================================================
-echo   El bot se detuvo.
-echo ============================================================
-pause
+echo [%date% %time%] El bot se detuvo. Reintentando en 15 segundos...
+echo Cierra esta ventana si no quieres que vuelva a arrancar.
+timeout /t 15 /nobreak >nul
+goto reiniciar
