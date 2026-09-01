@@ -1,0 +1,28 @@
+[Unit]
+Description=Bot de recarga Telcel
+# Esperar a que haya red de verdad, no solo a que el sistema arranque:
+# el bot se conecta a Telegram en cuanto inicia.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=CAMBIA_USUARIO
+WorkingDirectory=/opt/recarga
+ExecStart=/opt/recarga/venv/bin/python -u /opt/recarga/bot_telegram.py
+
+# Volver a levantarlo pase lo que pase: se cayo la red, tronó algo.
+# Es el equivalente al bucle del .bat de Windows.
+Restart=always
+RestartSec=15
+
+# Un limite de reinicios evita el ciclo infinito rapido cuando el
+# fallo es de configuracion y reintentar no lo va a arreglar.
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

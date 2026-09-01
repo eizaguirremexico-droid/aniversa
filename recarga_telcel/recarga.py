@@ -41,7 +41,14 @@ EN_SERVIDOR = os.environ.get("CI") == "true"
 # Con --auto no se espera ningun ENTER: sirve para el Programador de
 # tareas de Windows y para el servidor, donde nadie presiona teclas.
 AUTOMATICO = "--auto" in sys.argv or EN_SERVIDOR
-SIN_VENTANA = "--headless" in sys.argv or EN_SERVIDOR
+
+# En un Linux sin escritorio no hay donde dibujar una ventana: si se
+# intenta, Chromium no arranca. Se detecta por la ausencia de DISPLAY.
+SIN_ESCRITORIO = (sys.platform.startswith("linux")
+                  and not os.environ.get("DISPLAY")
+                  and not os.environ.get("WAYLAND_DISPLAY"))
+
+SIN_VENTANA = "--headless" in sys.argv or EN_SERVIDOR or SIN_ESCRITORIO
 
 # True = cobra de verdad.  False = llena todo pero no paga.
 # En GitHub Actions lo decide la variable PAGAR (si / no).
