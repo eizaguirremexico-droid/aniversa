@@ -47,7 +47,37 @@ Opciones:
 - `--headless` sin ventana
 - `--paquete "2 Horas"` elige el paquete
 
-## Uso desde el teléfono
+## Uso desde el teléfono (VPS con Dokploy) — recomendado
+
+Una página web con un botón por paquete, disponible siempre desde cualquier
+navegador. Es la opción con IP más estable, y no depende de GitHub.
+
+En Dokploy: **Create Project → Compose**, apuntando a este repositorio con
+`recarga_telcel/docker-compose.yml`. Luego, en la pestaña **Environment** del
+servicio, defines las variables (no van en el repositorio):
+
+```
+USUARIO=elquetuquieras
+CLAVE=algo-largo-y-dificil
+NUMERO=5512345678
+TARJETA=1234567812345678
+EXP=07/31
+CVV=123
+CP=12345
+EMAIL=tu@correo.com
+TIPO_PAGO=0
+```
+
+Le asignas un dominio en Dokploy (Traefik le pone HTTPS solo) y listo: abres
+esa dirección en el teléfono, te pide usuario y contraseña, y tocas el botón.
+
+La casilla "Cobrar de verdad" viene desmarcada. Sin marcarla llena todo el
+formulario pero no paga, que es como conviene probar la primera vez.
+
+**La contraseña es lo único que separa a un desconocido de tu tarjeta.** Que
+sea larga, y que el dominio tenga HTTPS.
+
+## Uso desde el teléfono (GitHub Actions) — alternativa
 
 En la app de GitHub: **Actions → Recarga Telcel → Run workflow**, eliges el
 paquete del menú y confirmas. No hace falta tener la PC encendida.

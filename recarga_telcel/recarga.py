@@ -599,7 +599,7 @@ def registrar_bitacora(texto):
 
 def main():
     print("=" * 60)
-    print("  PASO2_recarga  " + VERSION)
+    print("  recarga.py  " + VERSION)
     print("=" * 60)
 
     if EJECUTAR_PAGO:

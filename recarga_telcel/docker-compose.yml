@@ -1,0 +1,31 @@
+# Para desplegar en Dokploy (Compose).
+# Las variables se cargan desde la pestaña Environment del servicio,
+# no desde aqui: asi la tarjeta no queda en el repositorio.
+
+services:
+  recarga:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      # Acceso a la pagina
+      USUARIO: ${USUARIO}
+      CLAVE: ${CLAVE}
+      # Datos de la compra
+      NUMERO: ${NUMERO}
+      TARJETA: ${TARJETA}
+      EXP: ${EXP}
+      CVV: ${CVV}
+      CP: ${CP}
+      EMAIL: ${EMAIL}
+      TIPO_PAGO: ${TIPO_PAGO:-0}
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request;urllib.request.urlopen('http://localhost:8080/salud')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
