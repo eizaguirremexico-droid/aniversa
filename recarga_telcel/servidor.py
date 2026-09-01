@@ -45,7 +45,11 @@ _estado = {
     "inicio": None,
     "resultado": None,
     "salida": "",
+    "lineas": [],      # se va llenando en vivo mientras corre
+    "paso": "",        # ultima linea con contenido, para el titular
 }
+
+LIMITE_SEGUNDOS = 600
 
 
 def protegido(f):
@@ -66,34 +70,68 @@ def protegido(f):
 
 
 def ejecutar(paquete, pagar):
-    """Corre el script de compra y guarda el resultado."""
+    """
+    Corre el script de compra leyendo su salida LINEA POR LINEA, para
+    que la pagina pueda ir mostrando el avance en vez de quedarse dos
+    minutos en blanco.
+
+    El '-u' es imprescindible: sin el, Python guarda la salida en un
+    buffer cuando no escribe a una terminal, y todos los mensajes
+    llegarian de golpe al terminar, que es justo lo que se quiere evitar.
+    """
     entorno = os.environ.copy()
     entorno["PAGAR"] = "si" if pagar else "no"
-    entorno["CI"] = "true"          # modo sin ventana y sin pausas
+    entorno["CI"] = "true"           # modo sin ventana y sin pausas
+    entorno["PYTHONUNBUFFERED"] = "1"
+
+    lineas = []
+    proceso = None
+
+    def matar():
+        if proceso and proceso.poll() is None:
+            proceso.kill()
 
     try:
-        p = subprocess.run(
-            [sys.executable, SCRIPT, "--paquete", paquete],
-            capture_output=True, text=True, timeout=600,
-            cwd=CARPETA, env=entorno)
-        salida = (p.stdout or "") + (p.stderr or "")
-        if not pagar:
-            ok = "NO se envio el pago" in salida
-            resultado = "Prueba completada sin cobrar" if ok else "Termino con dudas"
+        proceso = subprocess.Popen(
+            [sys.executable, "-u", SCRIPT, "--paquete", paquete],
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, bufsize=1, cwd=CARPETA, env=entorno)
+
+        # Cortarlo si se pasa del limite, sin bloquear la lectura.
+        reloj = threading.Timer(LIMITE_SEGUNDOS, matar)
+        reloj.daemon = True
+        reloj.start()
+
+        for linea in proceso.stdout:
+            linea = linea.rstrip()
+            lineas.append(linea)
+            if linea.strip():
+                with _candado:
+                    _estado["lineas"] = lineas[-40:]
+                    _estado["paso"] = linea.strip()
+
+        proceso.wait()
+        reloj.cancel()
+
+        salida = "\n".join(lineas)
+        if proceso.returncode == -9:
+            resultado = "Tardo demasiado y se cancelo"
+        elif not pagar:
+            resultado = ("Prueba completada sin cobrar"
+                         if "NO se envio el pago" in salida
+                         else "Termino con dudas")
         else:
-            ok = "Pago enviado" in salida
-            resultado = "Recarga enviada" if ok else "Termino con dudas"
-    except subprocess.TimeoutExpired:
-        salida = "Se paso de 10 minutos y se cancelo."
-        resultado = "Tardo demasiado"
+            resultado = ("Recarga enviada" if "Pago enviado" in salida
+                         else "Termino con dudas")
     except Exception as e:
-        salida = str(e)
+        salida = "\n".join(lineas + [f"Error del servidor: {e}"])
         resultado = "Fallo"
 
     with _candado:
         _estado["corriendo"] = False
         _estado["resultado"] = resultado
-        _estado["salida"] = salida[-4000:]
+        _estado["salida"] = salida[-6000:]
+        _estado["lineas"] = lineas[-40:]
 
 
 @app.route("/api/recargar", methods=["POST"])
@@ -112,6 +150,7 @@ def api_recargar():
         _estado.update({
             "corriendo": True, "paquete": paquete, "pagando": pagar,
             "inicio": time.time(), "resultado": None, "salida": "",
+            "lineas": [], "paso": "Arrancando...",
         })
 
     threading.Thread(target=ejecutar, args=(paquete, pagar),
@@ -182,11 +221,17 @@ PAGINA = """<!doctype html>
     font-size: 15px; display: none;
   }
   #estado.visible { display: block; }
+  #paso {
+    margin-top: 8px; padding-left: 17px;
+    font-size: 14px; color: #c8cdd7;
+  }
   #detalle {
     margin-top: 12px; font-family: ui-monospace, Menlo, Consolas, monospace;
     font-size: 12px; color: #9aa1ad; white-space: pre-wrap;
     max-height: 260px; overflow: auto;
+    border-top: 1px solid #2a303c; padding-top: 10px;
   }
+  #detalle:empty { display: none; border: 0; padding: 0; }
   .punto {
     display: inline-block; width: 9px; height: 9px; border-radius: 50%;
     margin-right: 8px; background: #9aa1ad;
@@ -211,6 +256,7 @@ PAGINA = """<!doctype html>
 
   <div id="estado">
     <div><span class="punto" id="punto"></span><span id="titulo"></span></div>
+    <div id="paso"></div>
     <div id="detalle"></div>
   </div>
 
@@ -221,6 +267,7 @@ const caja = document.getElementById('estado');
 const punto = document.getElementById('punto');
 const titulo = document.getElementById('titulo');
 const detalle = document.getElementById('detalle');
+const paso = document.getElementById('paso');
 let vigilando = null;
 
 PAQUETES.forEach(p => {
@@ -254,12 +301,20 @@ async function pedir(paquete) {
     });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || 'Error');
-    if (!vigilando) vigilando = setInterval(mirar, 2000);
+    if (!vigilando) vigilando = setInterval(mirar, 1500);
   } catch (e) {
     punto.className = 'punto mal';
     titulo.textContent = e.message;
     bloquear(false);
   }
+}
+
+function pintarLog(lineas) {
+  if (!lineas || !lineas.length) return;
+  const abajo = detalle.scrollTop + detalle.clientHeight >= detalle.scrollHeight - 30;
+  detalle.textContent = lineas.join('\n');
+  // Seguir el final solo si el usuario no subio a leer algo.
+  if (abajo) detalle.scrollTop = detalle.scrollHeight;
 }
 
 async function mirar() {
@@ -268,12 +323,16 @@ async function mirar() {
     if (e.corriendo) {
       punto.className = 'punto trabajando';
       titulo.textContent = `Comprando ${e.paquete}... (${e.segundos||0}s)`;
+      paso.textContent = e.paso || '';
+      pintarLog(e.lineas);
       bloquear(true);
     } else if (e.resultado) {
       const bien = /enviada|completada/i.test(e.resultado);
       punto.className = 'punto ' + (bien ? 'bien' : 'mal');
       titulo.textContent = e.resultado;
-      detalle.textContent = e.salida || '';
+      paso.textContent = '';
+      pintarLog(e.lineas && e.lineas.length ? e.lineas
+                                           : (e.salida || '').split('\n'));
       bloquear(false);
       clearInterval(vigilando); vigilando = null;
     }
