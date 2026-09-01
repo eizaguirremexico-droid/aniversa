@@ -28,6 +28,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 
@@ -153,12 +154,21 @@ def main():
         entorno["PYTHONUNBUFFERED"] = "1"
 
         try:
-            p = subprocess.run(
-                [sys.executable, "-u", script, "--auto",
-                 "--paquete", paquete],
-                capture_output=True, text=True, timeout=600,
-                cwd=CARPETA, env=entorno)
-            salida = (p.stdout or "") + (p.stderr or "")
+            # La salida va a un archivo temporal, NO a una tuberia.
+            #
+            # Con capture_output=True, subprocess espera a que se cierre
+            # la tuberia, y Chromium la hereda del proceso de Python: el
+            # bot se quedaba bloqueado mientras el navegador siguiera
+            # vivo, y nunca llegaba a avisar que la compra habia salido.
+            with tempfile.TemporaryFile("w+", encoding="utf-8",
+                                        errors="replace") as archivo:
+                subprocess.run(
+                    [sys.executable, "-u", script, "--auto",
+                     "--paquete", paquete],
+                    stdout=archivo, stderr=subprocess.STDOUT, timeout=600,
+                    cwd=CARPETA, env=entorno)
+                archivo.seek(0)
+                salida = archivo.read()
             if "Pago enviado" in salida:
                 print(f"[{hora}] Listo: {paquete}")
                 enviar(chat, f"Listo. Recarga de {paquete} enviada.\n"

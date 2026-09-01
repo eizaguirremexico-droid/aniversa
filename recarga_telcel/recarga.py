@@ -569,7 +569,9 @@ def paso_tarjeta(page, pago, cfg):
 
         # Vigilar 2 minutos: aqui aparece el 3D Secure del banco si lo hay.
         visto = set()
-        vigilar = 30 if AUTOMATICO else 120
+        # Ya se comprobo que el banco no pide 3D Secure, asi que
+        # en modo automatico basta una vigilancia corta.
+        vigilar = 15 if AUTOMATICO else 120
         for seg in range(0, vigilar, 5):
             page.wait_for_timeout(5_000)
             for f in page.frames:
@@ -587,7 +589,12 @@ def paso_tarjeta(page, pago, cfg):
                     visto.add(txt)
                     print(f"      [{seg:3}s] {url[:45]}")
                     print(f"             {txt[:150]}")
-            page.screenshot(path=f"resultado_{seg:03}s.png", full_page=True)
+            # Sin full_page: en esta pagina tarda varios segundos
+            # y aqui solo interesa el aviso de confirmacion.
+            try:
+                page.screenshot(path=f"resultado_{seg:03}s.png")
+            except Exception:
+                pass
 
         print("\n      Se guardaron capturas resultado_XXXs.png")
         print("      Revisa si el banco pidio codigo o si el cargo paso.")
@@ -611,7 +618,7 @@ def main():
     print("  recarga.py  " + VERSION)
     print("=" * 60)
 
-    if EJECUTAR_PAGO:
+    if EJECUTAR_PAGO and not AUTOMATICO:
         print("\n  *** ATENCION: EJECUTAR_PAGO esta en True. ***")
         print("  *** Este script VA A COBRAR a tu tarjeta.  ***")
         print("\n  Para cancelar, cierra esta ventana ahora.")
@@ -663,7 +670,17 @@ def main():
                 pass
         finally:
             pausa("\nENTER para cerrar...")
-            navegador.close()
+            # Cerrar el contexto antes que el navegador: deja menos
+            # procesos hijos sueltos, que son los que mantenian abierta
+            # la tuberia de salida y bloqueaban a quien nos invoco.
+            try:
+                page.context.close()
+            except Exception:
+                pass
+            try:
+                navegador.close()
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":
