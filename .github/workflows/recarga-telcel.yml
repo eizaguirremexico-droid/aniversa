@@ -1,0 +1,65 @@
+name: Recarga Telcel
+
+# Se dispara a mano desde la app de GitHub en el telefono:
+# Actions -> Recarga Telcel -> Run workflow -> eliges el paquete.
+on:
+  workflow_dispatch:
+    inputs:
+      paquete:
+        description: "Cuanto tiempo quieres"
+        required: true
+        default: "1 Hora"
+        type: choice
+        options:
+          - "1 Hora"
+          - "2 Horas"
+          - "4 Horas"
+      pagar:
+        description: "Cobrar de verdad?"
+        required: true
+        default: "no"
+        type: choice
+        options:
+          - "no"
+          - "si"
+
+jobs:
+  recargar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar Playwright y Chromium
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
+
+      - name: Ejecutar la recarga
+        working-directory: recarga_telcel
+        env:
+          PAGAR: ${{ inputs.pagar }}
+          NUMERO: ${{ secrets.TELCEL_NUMERO }}
+          TARJETA: ${{ secrets.TELCEL_TARJETA }}
+          EXP: ${{ secrets.TELCEL_EXP }}
+          CVV: ${{ secrets.TELCEL_CVV }}
+          CP: ${{ secrets.TELCEL_CP }}
+          EMAIL: ${{ secrets.TELCEL_EMAIL }}
+          TIPO_PAGO: ${{ secrets.TELCEL_TIPO_PAGO }}
+        run: python recarga.py --paquete "${{ inputs.paquete }}"
+
+      # Las capturas son la unica forma de ver que paso, porque aqui
+      # el navegador corre sin ventana. Quedan en la pestaña Summary.
+      - name: Guardar capturas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: capturas
+          path: recarga_telcel/*.png
+          retention-days: 7
+          if-no-files-found: ignore

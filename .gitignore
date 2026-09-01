@@ -1,0 +1,14 @@
+# Datos de tarjeta: NUNCA deben entrar al repositorio.
+datos.txt
+recarga_telcel/datos.txt
+
+# Salidas de las corridas
+*.png
+bitacora.txt
+salida_tarea.txt
+reporte.txt
+paquetes.txt
+clics.txt
+
+__pycache__/
+*.pyc
